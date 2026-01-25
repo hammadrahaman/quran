@@ -1,0 +1,39 @@
+name: quran_companion
+description: A Quran reading companion app
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.5
+  
+  # API & Network
+  http: ^1.2.0
+  
+  # UI
+  cupertino_icons: ^1.0.8
+  table_calendar: ^3.0.9
+  google_fonts: ^6.1.0
+  
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  # Add Quran data assets
+  assets:
+    - assets/data/quran/
+  
+  # Fonts
+  fonts:
+    - family: UthmanicHafs
+      fonts:
+        - asset: assets/fonts/UthmanicHafs.otf
