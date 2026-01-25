@@ -30,92 +30,24 @@ class AyahTextWidget extends StatelessWidget {
     return result;
   }
 
- String _getCleanedText() {
-  String cleanText = text.trim();
-  
-  // For first ayah only (except Surah 9), remove Bismillah completely
-  if (surahNumber != 9 && ayahIndex == 0) {
-    // Check if text contains Bismillah keywords
-    final lowerText = cleanText;
-    
-    // If the ayah contains "بسم" (bism), likely has Bismillah - remove it
-    if (lowerText.contains('بِسْمِ') || lowerText.contains('بِسۡمِ') || lowerText.contains('بسم')) {
-      // Split by common word that comes AFTER Bismillah
-      // Most surahs have "الم" or other text after Bismillah
-      
-      // Try to find where Bismillah ends - look for "الرحيم" (Ar-Raheem - last word)
-      final possibleEndings = [
-        'ٱلرَّحِيمِ',
-        'الرَّحِيمِ', 
-        'ٱلرَّحِيمِ',
-        'الرحيم',
-      ];
-      
-      for (var ending in possibleEndings) {
-        if (cleanText.contains(ending)) {
-          // Find the position and take everything AFTER it
-          int endPos = cleanText.indexOf(ending) + ending.length;
-          if (endPos < cleanText.length) {
-            cleanText = cleanText.substring(endPos).trim();
-            break;
-          } else {
-            // Bismillah is the entire ayah (like in Surah 1)
-            cleanText = '';
-            break;
-          }
-        }
-      }
+  // Check if ayah 1 is ONLY Bismillah (no other content)
+  bool _isAyahOnlyBismillah() {
+    // Surah 1 (Al-Fatiha): Ayah 1 IS Bismillah
+    if (surahNumber == 1 && ayahIndex == 0) {
+      return true;
     }
+    
+    // For other surahs, if ayah 1 is very short (< 50 chars), 
+    // it's likely ONLY Bismillah
+    if (surahNumber != 9 && ayahIndex == 0 && text.length < 50) {
+      return true;
+    }
+    
+    return false;
   }
-  
-  return cleanText;
-}
 
  @override
 Widget build(BuildContext context) {
-  // For first ayah of any surah (except Surah 9), 
-  // if text starts with Bismillah, don't display it
-  // since the header already shows it
-  
-  if (surahNumber != 9 && ayahIndex == 0) {
-    // Check if the first 10 characters contain "بسم" (bism)
-    if (text.length >= 10 && text.substring(0, 10).contains('بسم')) {
-      // This ayah is Bismillah - don't show it
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 48,
-        ),
-        decoration: BoxDecoration(
-          color: isDark 
-              ? const Color(0xFF0A0A0A)
-              : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(
-              Icons.arrow_downward,
-              size: 32,
-              color: Colors.teal.withOpacity(0.5),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Bismillah is shown above\nSwipe to next ayah →',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15,
-                color: Colors.grey[500],
-                height: 1.5,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-  }
-  
-  // Normal ayah display
   return Container(
     padding: const EdgeInsets.symmetric(
       horizontal: 16,
@@ -132,7 +64,7 @@ Widget build(BuildContext context) {
       textDirection: TextDirection.rtl,
       text: TextSpan(
         children: [
-          // Arabic ayah text
+          // Arabic ayah text - NO FILTERING
           TextSpan(
             text: text,
             style: const TextStyle(
