@@ -1,49 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class BismillahHeader extends StatelessWidget {
-  final double fontSize;
   final bool isDark;
+  final double fontSize;
 
   const BismillahHeader({
     super.key,
-    required this.fontSize,
     required this.isDark,
+    required this.fontSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 32),
-      padding: const EdgeInsets.all(24),
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            (isDark ? Colors.teal.withOpacity(0.15) : Colors.teal.withOpacity(0.08)),
-            (isDark ? Colors.teal.withOpacity(0.05) : Colors.teal.withOpacity(0.03)),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Colors.teal.withOpacity(0.2),
-        ),
+        color: isDark ? const Color(0xFF0F1414) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.teal.withOpacity(0.25)),
       ),
       child: Column(
         children: [
-          // "Bismillah" label
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.teal.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              color: Colors.teal.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(999),
             ),
             child: const Text(
               'Bismillah',
               style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
                 color: Colors.teal,
-                letterSpacing: 0.5,
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                letterSpacing: 0.2,
               ),
             ),
           ),
@@ -51,23 +42,22 @@ class BismillahHeader extends StatelessWidget {
           Text(
             'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ',
             textAlign: TextAlign.center,
-            style: GoogleFonts.amiri(
-              fontSize: fontSize + 2,
-              fontWeight: FontWeight.w600,
-              height: 2.5,
+            textDirection: TextDirection.rtl,
+            style: TextStyle(
+              fontFamily: 'KFGQPCNaskh',
+              fontSize: fontSize + 8,
+              height: 2.25,
               color: isDark ? Colors.white : Colors.black,
-              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Text(
             'In the Name of Allah—the Most Compassionate, Most Merciful',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13,
-              color: isDark ? Colors.grey[400] : Colors.grey[600],
-              height: 1.6,
+              color: (isDark ? Colors.white70 : Colors.black54),
               fontStyle: FontStyle.italic,
+              height: 1.4,
             ),
           ),
         ],

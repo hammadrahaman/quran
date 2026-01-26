@@ -4,149 +4,133 @@ import 'package:flutter/services.dart';
 
 class QuranAPI {
   static const String baseUrl = 'https://api.alquran.cloud/v1';
-  
-  // Cache for offline data
+
   static Map<String, dynamic>? _cachedArabicData;
   static Map<String, dynamic>? _cachedEnglishData;
 
-  // Load data from local assets (offline-first)
   static Future<void> _loadLocalData() async {
     if (_cachedArabicData == null) {
-      try {
-        final arabicString = await rootBundle.loadString('assets/data/quran/quran_arabic.json');
-        _cachedArabicData = json.decode(arabicString);
-        print('Arabic data loaded successfully');
-      } catch (e) {
-        print('Error loading local Arabic data: $e');
-      }
+      final arabicString = await rootBundle.loadString('assets/data/quran/quran_arabic.json');
+      _cachedArabicData = json.decode(arabicString);
     }
-
     if (_cachedEnglishData == null) {
-      try {
-        final englishString = await rootBundle.loadString('assets/data/quran/quran_english.json');
-        _cachedEnglishData = json.decode(englishString);
-        print('English data loaded successfully');
-      } catch (e) {
-        print('Error loading local English data: $e');
-      }
+      final englishString = await rootBundle.loadString('assets/data/quran/quran_english.json');
+      _cachedEnglishData = json.decode(englishString);
     }
   }
 
-  // Get list of all Surahs (offline-first)
+  static bool _looksLikeBismillah(String s) {
+    final t = s.replaceAll('\uFEFF', '').trim(); // remove BOM if present
+    // Works for both "simple" and "uthmani" text
+    return t.contains('بسم') &&
+        t.contains('الله') &&
+        t.contains('الرحمن') &&
+        t.contains('الرحيم');
+  }
+
+  static List<Ayah> _stripBismillahIfNeeded(int surahNumber, List<Ayah> ayahs) {
+    // Surah 9 has no Bismillah header.
+    // Surah 1: Bismillah is commonly treated as Ayah 1 (keep it as-is).
+    if (surahNumber == 9 || surahNumber == 1) return ayahs;
+    if (ayahs.isEmpty) return ayahs;
+
+    // If dataset prepends Bismillah as first ayah, remove it so UI can show it as header.
+    if (_looksLikeBismillah(ayahs.first.text)) {
+      return ayahs.sublist(1);
+    }
+    return ayahs;
+  }
+
   static Future<List<Surah>> getAllSurahs() async {
     try {
-      // Try to load from local assets first
       await _loadLocalData();
-      
-      if (_cachedArabicData != null && _cachedArabicData!['data'] != null) {
-        final surahs = (_cachedArabicData!['data']['surahs'] as List)
-            .map((s) => Surah.fromJson(s))
-            .toList();
-        print('Loaded ${surahs.length} surahs from local data');
-        return surahs;
-      }
-    } catch (e) {
-      print('Error loading local surahs: $e');
-    }
+      final surahs = (_cachedArabicData?['data']?['surahs'] as List? ?? [])
+          .map((s) => Surah.fromJson(s as Map<String, dynamic>))
+          .toList();
+      if (surahs.isNotEmpty) return surahs;
+    } catch (_) {}
 
-    // Fallback to online API if local data not available
     try {
       final response = await http.get(Uri.parse('$baseUrl/surah'));
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final surahs = (data['data'] as List)
-            .map((s) => Surah.fromJson(s))
-            .toList();
-        return surahs;
+        return (data['data'] as List).map((s) => Surah.fromJson(s)).toList();
       }
-    } catch (e) {
-      print('Error fetching online surahs: $e');
-    }
+    } catch (_) {}
 
     return [];
   }
 
-  // Get a specific Surah with translation (offline-first)
   static Future<SurahDetail?> getSurahWithTranslation(int number) async {
+    // 1) Offline-first
     try {
-      // Load from local assets
       await _loadLocalData();
 
-      if (_cachedArabicData != null && _cachedEnglishData != null) {
-        final arabicSurahs = _cachedArabicData!['data']['surahs'] as List;
-        final englishSurahs = _cachedEnglishData!['data']['surahs'] as List;
+      final arabicSurahs = _cachedArabicData?['data']?['surahs'] as List?;
+      final englishSurahs = _cachedEnglishData?['data']?['surahs'] as List?;
 
-        if (number > 0 && number <= arabicSurahs.length) {
-          final arabicSurah = arabicSurahs[number - 1];
-          final englishSurah = englishSurahs[number - 1];
+      if (arabicSurahs != null &&
+          englishSurahs != null &&
+          number > 0 &&
+          number <= arabicSurahs.length &&
+          number <= englishSurahs.length) {
+        final arabicSurah = arabicSurahs[number - 1] as Map<String, dynamic>;
+        final englishSurah = englishSurahs[number - 1] as Map<String, dynamic>;
 
-          List<Ayah> ayahs = [];
-          final arabicAyahs = arabicSurah['ayahs'] as List;
-          final englishAyahs = englishSurah['ayahs'] as List;
+        final arabicAyahs = (arabicSurah['ayahs'] as List? ?? []);
+        final englishAyahs = (englishSurah['ayahs'] as List? ?? []);
 
-          for (int i = 0; i < arabicAyahs.length; i++) {
-            ayahs.add(Ayah(
-              number: arabicAyahs[i]['number'] ?? 0,
-              text: arabicAyahs[i]['text'] ?? '',
-              numberInSurah: arabicAyahs[i]['numberInSurah'] ?? (i + 1),
-              translation: i < englishAyahs.length ? englishAyahs[i]['text'] : null,
-            ));
-          }
+        final built = <Ayah>[];
+        for (int i = 0; i < arabicAyahs.length; i++) {
+          final a = arabicAyahs[i] as Map<String, dynamic>;
+          final tr = (i < englishAyahs.length) ? (englishAyahs[i] as Map<String, dynamic>) : null;
 
-          return SurahDetail(
-            number: arabicSurah['number'] ?? 0,
-            name: arabicSurah['name'] ?? '',
-            englishName: arabicSurah['englishName'] ?? '',
-            englishNameTranslation: arabicSurah['englishNameTranslation'] ?? '',
-            numberOfAyahs: arabicSurah['numberOfAyahs'] ?? ayahs.length,
-            ayahs: ayahs,
+          built.add(
+            Ayah(
+              number: a['number'] ?? 0, // GLOBAL ayah number (needed for audio)
+              text: a['text'] ?? '',
+              numberInSurah: a['numberInSurah'] ?? (i + 1),
+              translation: tr?['text'] as String?,
+            ),
           );
         }
+
+        final ayahs = _stripBismillahIfNeeded(number, built);
+
+        return SurahDetail(
+          number: arabicSurah['number'] ?? number,
+          name: arabicSurah['name'] ?? '',
+          englishName: arabicSurah['englishName'] ?? '',
+          englishNameTranslation: arabicSurah['englishNameTranslation'] ?? '',
+          numberOfAyahs: ayahs.length, // after stripping
+          ayahs: ayahs,
+        );
       }
     } catch (e) {
+      // ignore: avoid_print
       print('Error loading local surah: $e');
     }
 
-    // Fallback to online API
+    // 2) Online fallback (Uthmani)
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/surah/$number/editions/quran-uthmani,en.asad'),
       );
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return SurahDetail.fromJsonWithTranslation(data['data']);
+        final detail = SurahDetail.fromJsonWithTranslation(data['data']);
+        final ayahs = _stripBismillahIfNeeded(number, detail.ayahs);
+        return SurahDetail(
+          number: detail.number,
+          name: detail.name,
+          englishName: detail.englishName,
+          englishNameTranslation: detail.englishNameTranslation,
+          numberOfAyahs: ayahs.length,
+          ayahs: ayahs,
+        );
       }
     } catch (e) {
-      print('Error fetching online surah: $e');
-    }
-
-    return null;
-  }
-
-  // Get a specific Surah (offline-first)
-  static Future<SurahDetail?> getSurah(int number) async {
-    try {
-      await _loadLocalData();
-
-      if (_cachedArabicData != null) {
-        final surahs = _cachedArabicData!['data']['surahs'] as List;
-        if (number > 0 && number <= surahs.length) {
-          return SurahDetail.fromJson(surahs[number - 1]);
-        }
-      }
-    } catch (e) {
-      print('Error loading local surah: $e');
-    }
-
-    // Fallback to online API
-    try {
-      final response = await http.get(Uri.parse('$baseUrl/surah/$number'));
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return SurahDetail.fromJson(data['data']);
-      }
-    } catch (e) {
+      // ignore: avoid_print
       print('Error fetching online surah: $e');
     }
 
@@ -201,31 +185,20 @@ class SurahDetail {
     required this.ayahs,
   });
 
-  factory SurahDetail.fromJson(Map<String, dynamic> json) {
-    return SurahDetail(
-      number: json['number'] ?? 0,
-      name: json['name'] ?? '',
-      englishName: json['englishName'] ?? '',
-      englishNameTranslation: json['englishNameTranslation'] ?? '',
-      numberOfAyahs: json['numberOfAyahs'] ?? 0,
-      ayahs: (json['ayahs'] as List? ?? [])
-          .map((a) => Ayah.fromJson(a))
-          .toList(),
-    );
-  }
-
   factory SurahDetail.fromJsonWithTranslation(List<dynamic> data) {
     final arabic = data[0];
     final translation = data[1];
-    
-    List<Ayah> ayahs = [];
-    for (int i = 0; i < arabic['ayahs'].length; i++) {
-      ayahs.add(Ayah(
-        number: arabic['ayahs'][i]['number'] ?? 0,
-        text: arabic['ayahs'][i]['text'] ?? '',
-        numberInSurah: arabic['ayahs'][i]['numberInSurah'] ?? (i + 1),
-        translation: translation['ayahs'][i]['text'],
-      ));
+
+    final built = <Ayah>[];
+    for (int i = 0; i < (arabic['ayahs'] as List).length; i++) {
+      built.add(
+        Ayah(
+          number: arabic['ayahs'][i]['number'] ?? 0,
+          text: arabic['ayahs'][i]['text'] ?? '',
+          numberInSurah: arabic['ayahs'][i]['numberInSurah'] ?? (i + 1),
+          translation: translation['ayahs'][i]['text'],
+        ),
+      );
     }
 
     return SurahDetail(
@@ -233,14 +206,14 @@ class SurahDetail {
       name: arabic['name'] ?? '',
       englishName: arabic['englishName'] ?? '',
       englishNameTranslation: arabic['englishNameTranslation'] ?? '',
-      numberOfAyahs: arabic['numberOfAyahs'] ?? ayahs.length,
-      ayahs: ayahs,
+      numberOfAyahs: arabic['numberOfAyahs'] ?? built.length,
+      ayahs: built,
     );
   }
 }
 
 class Ayah {
-  final int number;
+  final int number; // GLOBAL ayah number (audio uses this)
   final String text;
   final int numberInSurah;
   final String? translation;
@@ -251,12 +224,4 @@ class Ayah {
     required this.numberInSurah,
     this.translation,
   });
-
-  factory Ayah.fromJson(Map<String, dynamic> json) {
-    return Ayah(
-      number: json['number'] ?? 0,
-      text: json['text'] ?? '',
-      numberInSurah: json['numberInSurah'] ?? 0,
-    );
-  }
 }

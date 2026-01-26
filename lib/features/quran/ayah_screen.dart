@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+
 import '../../core/services/quran_api.dart';
 import '../../core/storage/local_storage.dart';
+import '../../core/services/audio_service.dart';
+
 import 'widgets/bismillah_header.dart';
 import 'widgets/ayah_text_widget.dart';
 import 'widgets/translation_widget.dart';
@@ -27,85 +31,141 @@ class _AyahScreenState extends State<AyahScreen> {
   SurahDetail? surahDetail;
   bool isLoading = true;
   int currentAyahIndex = 0;
-  double arabicFontSize = 36.0;
+  double arabicFontSize = 32.0;
+  bool isPlaying = false;
 
   @override
   void initState() {
     super.initState();
     arabicFontSize = LocalStorage.getArabicFontSize();
     currentAyahIndex = widget.initialAyahIndex;
+
+    AudioService.playerStateStream.listen((state) {
+      if (!mounted) return;
+      if (state.processingState == ProcessingState.completed) {
+        setState(() => isPlaying = false);
+      }
+    });
+
     loadSurah();
   }
 
+  @override
+  void dispose() {
+    AudioService.stop();
+    super.dispose();
+  }
+
   Future<void> loadSurah() async {
-    setState(() {
-      isLoading = true;
-    });
-    
+    setState(() => isLoading = true);
     final data = await QuranAPI.getSurahWithTranslation(widget.surahNumber);
     setState(() {
       surahDetail = data;
       isLoading = false;
     });
-    
     if (data != null) {
       LocalStorage.saveLastRead(widget.surahNumber, currentAyahIndex + 1);
     }
   }
 
-  void nextAyah() async {
-    if (surahDetail != null && currentAyahIndex < surahDetail!.ayahs.length - 1) {
-      setState(() {
-        currentAyahIndex++;
-      });
-      LocalStorage.saveLastRead(widget.surahNumber, currentAyahIndex + 1);
-    } else if (currentAyahIndex == surahDetail!.ayahs.length - 1) {
-      // Reached last ayah - show completion dialog
-      final shouldContinue = await SurahCompletionDialog.show(
-        context: context,
-        surahName: widget.surahName,
-        nextSurahNumber: widget.surahNumber + 1,
-        hasNextSurah: widget.surahNumber < 114,
-      );
-      
-      if (shouldContinue) {
-        goToNextSurah();
-      }
+  Future<void> _toggleAudio() async {
+    if (surahDetail == null) return;
+    final globalAyah = surahDetail!.ayahs[currentAyahIndex].number;
+
+    if (isPlaying) {
+      await AudioService.pause();
+      setState(() => isPlaying = false);
+    } else {
+      await AudioService.playAyah(globalAyah);
+      setState(() => isPlaying = true);
     }
   }
 
-  void previousAyah() {
-    if (currentAyahIndex > 0) {
-      setState(() {
-        currentAyahIndex--;
-      });
+  void _toggleBookmark() {
+    if (surahDetail == null) return;
+
+    final ayahInSurah = surahDetail!.ayahs[currentAyahIndex].numberInSurah;
+    final bookmarked = LocalStorage.isBookmarked(widget.surahNumber, ayahInSurah);
+
+    setState(() {
+      if (bookmarked) {
+        LocalStorage.removeBookmark(widget.surahNumber, ayahInSurah);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bookmark removed')),
+        );
+      } else {
+        LocalStorage.addBookmark(
+          surahNumber: widget.surahNumber,
+          ayahNumber: ayahInSurah,
+          surahName: widget.surahName,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bookmark added')),
+        );
+      }
+    });
+  }
+
+  Future<void> nextAyah() async {
+    await AudioService.stop();
+    setState(() => isPlaying = false);
+
+    if (surahDetail == null) return;
+
+    if (currentAyahIndex < surahDetail!.ayahs.length - 1) {
+      setState(() => currentAyahIndex++);
       LocalStorage.saveLastRead(widget.surahNumber, currentAyahIndex + 1);
+      return;
     }
+
+    final shouldContinue = await SurahCompletionDialog.show(
+      context: context,
+      surahName: widget.surahName,
+      nextSurahNumber: widget.surahNumber + 1,
+      hasNextSurah: widget.surahNumber < 114,
+    );
+
+    if (shouldContinue) {
+      await goToNextSurah();
+    }
+  }
+
+  Future<void> previousAyah() async {
+    await AudioService.stop();
+    setState(() => isPlaying = false);
+
+    if (currentAyahIndex <= 0) return;
+    setState(() => currentAyahIndex--);
+    LocalStorage.saveLastRead(widget.surahNumber, currentAyahIndex + 1);
   }
 
   Future<void> goToNextSurah() async {
-    if (widget.surahNumber < 114) {
-      final nextSurahData = await QuranAPI.getSurahWithTranslation(widget.surahNumber + 1);
-      
-      if (nextSurahData != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AyahScreen(
-              surahNumber: widget.surahNumber + 1,
-              surahName: nextSurahData.englishName,
-              initialAyahIndex: 0,
-            ),
-          ),
-        );
-      }
-    }
+    if (widget.surahNumber >= 114) return;
+    final next = await QuranAPI.getSurahWithTranslation(widget.surahNumber + 1);
+    if (!mounted || next == null) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AyahScreen(
+          surahNumber: widget.surahNumber + 1,
+          surahName: next.englishName,
+          initialAyahIndex: 0,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
+    final ayahInSurah = (surahDetail == null)
+        ? 1
+        : surahDetail!.ayahs[currentAyahIndex].numberInSurah;
+
+    final bookmarked = LocalStorage.isBookmarked(widget.surahNumber, ayahInSurah);
+
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFF8F8F8),
       appBar: AppBar(
@@ -115,27 +175,17 @@ class _AyahScreenState extends State<AyahScreen> {
           children: [
             Text(
               '${widget.surahNumber}. ${widget.surahName}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             if (surahDetail != null)
               Text(
                 surahDetail!.englishNameTranslation,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isDark ? Colors.grey[500] : Colors.grey[600],
-                  fontWeight: FontWeight.normal,
-                ),
+                style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
               ),
           ],
         ),
         centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leading: BackButton(color: isDark ? Colors.white : Colors.black),
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -145,159 +195,99 @@ class _AyahScreenState extends State<AyahScreen> {
                   children: [
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(18),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            // Bismillah - ONLY on first ayah, ONLY for non-Surah 9
-                            if (widget.surahNumber != 9 && currentAyahIndex == 0) ...[
-                              BismillahHeader(
-                                fontSize: arabicFontSize,
-                                isDark: isDark,
-                              ),
-                              
-                              // Separator
-                              Container(
-                                margin: const EdgeInsets.only(bottom: 24),
-                                child: Row(
-                                  children: [
-                                    Expanded(child: Divider(color: Colors.grey[600])),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                                      child: Text(
-                                        'Ayah 1',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.teal,
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(child: Divider(color: Colors.grey[600])),
-                                  ],
-                                ),
-                              ),
-                            ],
-
-                            // Verse Number Badge with Bookmark
-                            Container(
-                              margin: const EdgeInsets.only(bottom: 24),
-                              child: Row(
+                            // Show Bismillah header only for surahs except 1 and 9, and only on first screen.
+                            if (widget.surahNumber != 1 && widget.surahNumber != 9 && currentAyahIndex == 0) ...[
+                              BismillahHeader(isDark: isDark, fontSize: arabicFontSize),
+                              const SizedBox(height: 12),
+                              Row(
                                 children: [
-                                  // Verse Number
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isDark 
-                                          ? const Color(0xFF1A1A1A)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(24),
-                                      border: Border.all(
-                                        color: isDark 
-                                            ? Colors.grey[800]!
-                                            : Colors.grey[300]!,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '${widget.surahNumber}:${currentAyahIndex + 1}',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDark ? Colors.white : Colors.black,
-                                      ),
-                                    ),
+                                  Expanded(child: Divider(color: (isDark ? Colors.white24 : Colors.black26))),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Ayah 1',
+                                    style: TextStyle(color: Colors.teal, fontWeight: FontWeight.w700),
                                   ),
-                                  
-                                  const Spacer(),
-                                  
-                                  // Bookmark Button
-                                  IconButton(
-                                    icon: Icon(
-                                      LocalStorage.isBookmarked(
-                                        widget.surahNumber,
-                                        currentAyahIndex + 1,
-                                      )
-                                          ? Icons.bookmark
-                                          : Icons.bookmark_border,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        if (LocalStorage.isBookmarked(
-                                          widget.surahNumber,
-                                          currentAyahIndex + 1,
-                                        )) {
-                                          LocalStorage.removeBookmark(
-                                            widget.surahNumber,
-                                            currentAyahIndex + 1,
-                                          );
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Bookmark removed'),
-                                              duration: Duration(seconds: 1),
-                                            ),
-                                          );
-                                        } else {
-                                          LocalStorage.addBookmark(
-                                            surahNumber: widget.surahNumber,
-                                            ayahNumber: currentAyahIndex + 1,
-                                            surahName: widget.surahName,
-                                          );
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Bookmark added'),
-                                              duration: Duration(seconds: 1),
-                                            ),
-                                          );
-                                        }
-                                      });
-                                    },
-                                    color: LocalStorage.isBookmarked(
-                                      widget.surahNumber,
-                                      currentAyahIndex + 1,
-                                    )
-                                        ? Colors.teal
-                                        : (isDark ? Colors.grey[400] : Colors.grey[600]),
-                                    iconSize: 24,
-                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(child: Divider(color: (isDark ? Colors.white24 : Colors.black26))),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 18),
+                            ],
 
-                            // Arabic Text with Ayah Number
-                           // Arabic Text with Ayah Number
+                            // Top row: verse ref + actions
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
+                                    borderRadius: BorderRadius.circular(999),
+                                    border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+                                  ),
+                                  child: Text(
+                                    '${widget.surahNumber}:$ayahInSurah',
+                                    style: TextStyle(
+                                      color: isDark ? Colors.white : Colors.black,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const Spacer(),
+
+                                IconButton(
+                                  icon: Icon(
+                                    isPlaying ? Icons.pause_circle : Icons.play_circle_outline,
+                                    size: 30,
+                                  ),
+                                  color: Colors.teal,
+                                  onPressed: _toggleAudio,
+                                ),
+
+                                // ✅ Bookmark button (added back)
+                                IconButton(
+                                  icon: Icon(
+                                    bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                                    size: 28,
+                                  ),
+                                  color: bookmarked ? Colors.teal : (isDark ? Colors.white70 : Colors.black54),
+                                  onPressed: _toggleBookmark,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+
                             AyahTextWidget(
-                            text: surahDetail!.ayahs[currentAyahIndex].text,
-                            ayahNumber: currentAyahIndex + 1,
-                            fontSize: arabicFontSize,
-                            isDark: isDark,
-                            surahNumber: widget.surahNumber,  // ADD THIS
-                            ayahIndex: currentAyahIndex,       // ADD THIS
+                              text: surahDetail!.ayahs[currentAyahIndex].text,
+                              ayahNumber: ayahInSurah,
+                              fontSize: arabicFontSize,
+                              isDark: isDark,
+                              surahNumber: widget.surahNumber,
+                              ayahIndex: currentAyahIndex,
                             ),
 
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 18),
 
-                            // Translation
                             if (surahDetail!.ayahs[currentAyahIndex].translation != null)
                               TranslationWidget(
                                 translation: surahDetail!.ayahs[currentAyahIndex].translation!,
                                 isDark: isDark,
                               ),
 
-                            const SizedBox(height: 100),
+                            const SizedBox(height: 24),
                           ],
                         ),
                       ),
                     ),
 
-                    // Bottom Navigation
                     AyahNavigationBar(
                       currentIndex: currentAyahIndex,
                       totalAyahs: surahDetail!.ayahs.length,
                       canGoPrevious: currentAyahIndex > 0,
-                      canGoNext: true, // Always enabled - dialog will handle completion
+                      canGoNext: true,
                       onPrevious: previousAyah,
                       onNext: nextAyah,
                       isDark: isDark,
