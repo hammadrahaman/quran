@@ -68,10 +68,11 @@ class _AyahScreenState extends State<AyahScreen> {
     }
   }
 
-  Future<void> _toggleAudio() async {
-    if (surahDetail == null) return;
-    final globalAyah = surahDetail!.ayahs[currentAyahIndex].number;
+ Future<void> _toggleAudio() async {
+  if (surahDetail == null) return;
+  final globalAyah = surahDetail!.ayahs[currentAyahIndex].number;
 
+  try {
     if (isPlaying) {
       await AudioService.pause();
       setState(() => isPlaying = false);
@@ -79,7 +80,14 @@ class _AyahScreenState extends State<AyahScreen> {
       await AudioService.playAyah(globalAyah);
       setState(() => isPlaying = true);
     }
+  } catch (_) {
+    if (!mounted) return;
+    setState(() => isPlaying = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Audio failed to load. Check internet and try again.')),
+    );
   }
+}
 
   void _toggleBookmark() {
     if (surahDetail == null) return;
