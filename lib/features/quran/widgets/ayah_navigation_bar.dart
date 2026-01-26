@@ -7,6 +7,7 @@ class AyahNavigationBar extends StatelessWidget {
   final bool canGoNext;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
+  final VoidCallback onDone;
   final bool isDark;
 
   const AyahNavigationBar({
@@ -17,77 +18,130 @@ class AyahNavigationBar extends StatelessWidget {
     required this.canGoNext,
     required this.onPrevious,
     required this.onNext,
+    required this.onDone,
     required this.isDark,
   });
 
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFF2563EB); // blue
+    const accent2 = Color(0xFF7C3AED); // violet
+
+    final isLandscape =
+        MediaQuery.of(context).orientation == Orientation.landscape;
+
+    final vPad = isLandscape ? 10.0 : 14.0;
+    final hPad = isLandscape ? 12.0 : 18.0;
+    final buttonHeight = isLandscape ? 42.0 : 48.0;
+
+    Color iconBg(bool enabled) => enabled
+        ? (isDark ? Colors.white10 : Colors.black.withOpacity(0.06))
+        : (isDark ? Colors.white12 : Colors.black.withOpacity(0.04));
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A1A) : Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+        color: isDark ? const Color(0xFF0B0F1A) : Colors.white,
+        border: Border(
+          top: BorderSide(
+            color: isDark ? Colors.white10 : Colors.black12,
           ),
-        ],
+        ),
       ),
       child: SafeArea(
         top: false,
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Previous button
+            // Previous
             Container(
               decoration: BoxDecoration(
-                color: canGoPrevious
-                    ? Colors.teal.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: iconBg(canGoPrevious),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new),
+                icon: const Icon(Icons.chevron_left_rounded),
                 onPressed: canGoPrevious ? onPrevious : null,
-                iconSize: 20,
-                color: canGoPrevious ? Colors.teal : Colors.grey,
+                iconSize: 28,
+                color: canGoPrevious
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : Colors.grey,
               ),
             ),
 
-            // Ayah counter
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 12,
-              ),
-              decoration: BoxDecoration(
-                color: Colors.teal,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                'Ayah ${currentIndex + 1} of $totalAyahs',
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+            const SizedBox(width: 12),
+
+            // Done button (adaptive)
+            Expanded(
+              child: SizedBox(
+                height: buttonHeight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [accent, accent2],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(999),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withOpacity(isDark ? 0.35 : 0.25),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: onDone,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.check_circle_outline,
+                            color: Colors.white, size: 20),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              "I'm Done",
+                              maxLines: 1,
+                              style: TextStyle(
+                                fontSize: isLandscape ? 14 : 15,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
 
-            // Next button
+            const SizedBox(width: 12),
+
+            // Next
             Container(
               decoration: BoxDecoration(
-                color: canGoNext
-                    ? Colors.teal.withOpacity(0.1)
-                    : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
+                color: iconBg(canGoNext),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: IconButton(
-                icon: const Icon(Icons.arrow_forward_ios),
+                icon: const Icon(Icons.chevron_right_rounded),
                 onPressed: canGoNext ? onNext : null,
-                iconSize: 20,
-                color: canGoNext ? Colors.teal : Colors.grey,
+                iconSize: 28,
+                color: canGoNext
+                    ? (isDark ? Colors.white : Colors.black87)
+                    : Colors.grey,
               ),
             ),
           ],

@@ -57,11 +57,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           TextButton(
             onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Progress reset')),
-              );
-            },
+                LocalStorage.resetAllReadingStats();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Progress reset')),
+                );
+                },
             child: const Text(
               'Reset',
               style: TextStyle(color: Colors.red),

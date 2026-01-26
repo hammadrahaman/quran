@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 import '../../core/storage/local_storage.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -10,30 +9,11 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay;
-  Map<String, bool> completedDays = {};
-
-  @override
-  void initState() {
-    super.initState();
-    loadProgress();
-  }
-
-  void loadProgress() {
-    setState(() {
-      completedDays = LocalStorage.getAllProgress();
-    });
-  }
-
-  bool isDayCompleted(DateTime day) {
-    final key = day.toIso8601String().substring(0, 10);
-    return completedDays[key] ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final totalDays = LocalStorage.getTotalDaysRead();
+    final streak = LocalStorage.getCurrentStreak();
 
     return Scaffold(
       appBar: AppBar(
@@ -45,7 +25,53 @@ class _ProgressScreenState extends State<ProgressScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Total days stat
+            Text(
+              'Current streak',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.grey,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              '$streak day${streak == 1 ? '' : 's'}',
+              style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Last 7 days completion bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF111111) : Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+              ),
+              child: Row(
+                children: List.generate(7, (i) {
+                  final day = DateTime.now().subtract(Duration(days: 6 - i));
+                  final dk = LocalStorage.dateKey(day);
+                  final done = LocalStorage.isCompleted(dk);
+                  return Expanded(
+                    child: Container(
+                      height: 10,
+                      margin: EdgeInsets.only(right: i == 6 ? 0 : 6),
+                      decoration: BoxDecoration(
+                        color: done
+                            ? Colors.teal
+                            : (isDark ? Colors.white12 : Colors.black12),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+
+            const SizedBox(height: 28),
+
             Text(
               'Total days read',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -60,140 +86,11 @@ class _ProgressScreenState extends State<ProgressScreen> {
                   ),
             ),
 
-            const SizedBox(height: 32),
-
-            // Calendar
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: TableCalendar(
-                firstDay: DateTime(2020, 1, 1),
-                lastDay: DateTime(2030, 12, 31),
-                focusedDay: _focusedDay,
-                selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-                calendarFormat: CalendarFormat.month,
-                startingDayOfWeek: StartingDayOfWeek.sunday,
-                calendarStyle: CalendarStyle(
-                  todayDecoration: BoxDecoration(
-                    color: Colors.teal.withOpacity(0.3),
-                    shape: BoxShape.circle,
-                  ),
-                  selectedDecoration: const BoxDecoration(
-                    color: Colors.teal,
-                    shape: BoxShape.circle,
-                  ),
-                  markerDecoration: const BoxDecoration(
-                    color: Colors.teal,
-                    shape: BoxShape.circle,
-                  ),
-                  outsideDaysVisible: false,
-                ),
-                headerStyle: HeaderStyle(
-                  formatButtonVisible: false,
-                  titleCentered: true,
-                  titleTextStyle: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  leftChevronIcon: const Icon(
-                    Icons.chevron_left,
-                    color: Colors.white,
-                  ),
-                  rightChevronIcon: const Icon(
-                    Icons.chevron_right,
-                    color: Colors.white,
-                  ),
-                ),
-                calendarBuilders: CalendarBuilders(
-                  defaultBuilder: (context, day, focusedDay) {
-                    if (isDayCompleted(day)) {
-                      return Center(
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: const BoxDecoration(
-                            color: Colors.teal,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${day.day}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return null;
-                  },
-                  todayBuilder: (context, day, focusedDay) {
-                    if (isDayCompleted(day)) {
-                      return Center(
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: const BoxDecoration(
-                            color: Colors.teal,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${day.day}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
-                    return Center(
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: Colors.teal.withOpacity(0.3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${day.day}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                onDaySelected: (selectedDay, focusedDay) {
-                  setState(() {
-                    _selectedDay = selectedDay;
-                    _focusedDay = focusedDay;
-                  });
-                },
-                onPageChanged: (focusedDay) {
-                  _focusedDay = focusedDay;
-                },
-              ),
-            ),
-
             const SizedBox(height: 24),
 
-            // Motivation message
             Center(
               child: Text(
-                totalDays > 0
-                    ? 'So far, so good 🤍 keep it up!'
-                    : 'Start your journey today!',
+                totalDays > 0 ? 'So far, so good 🤍 keep it up!' : 'Start your journey today!',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       color: Colors.grey,
                     ),
