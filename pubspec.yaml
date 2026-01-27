@@ -43,9 +43,14 @@ flutter:
     - assets/data/quran/quran_english.json
 
   fonts:
-    - family: KFGQPCNaskh
+    - family: IndoPak
       fonts:
-        - asset: assets/fonts/KFGQPC Uthman Taha Naskh Regular.ttf
+        - asset: assets/fonts/font.ttf
+
+  # fonts:
+  #   - family: KFGQPCNaskh
+  #     fonts:
+  #       - asset: assets/fonts/KFGQPC Uthman Taha Naskh Regular.ttf
 
     # (optional) keep your old one only if it still exists
     # - family: UthmanicHafs

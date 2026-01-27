@@ -18,7 +18,7 @@ class QuranCompanionApp extends StatefulWidget {
 }
 
 class QuranCompanionAppState extends State<QuranCompanionApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
+  ThemeMode _themeMode = ThemeMode.light;
 
   @override
   void initState() {
@@ -35,7 +35,8 @@ class QuranCompanionAppState extends State<QuranCompanionApp> {
 
   void toggleTheme() {
     setState(() {
-      _themeMode = _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
+      _themeMode =
+          _themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark;
       LocalStorage.setDarkMode(_themeMode == ThemeMode.dark);
     });
   }

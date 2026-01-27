@@ -31,8 +31,13 @@ class AyahTextWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final arabicColor =
+      isDark ? const Color(0xFFF6EDE5) : const Color(0xFF2B1B12);
+
+  final markerColor =
+      isDark ? const Color(0xFFBFAE9F) : const Color(0xFF6B4F3F);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 30),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF0A0A0A) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -43,25 +48,25 @@ class AyahTextWidget extends StatelessWidget {
         text: TextSpan(
           children: [
             TextSpan(
-              text: text,
-              style: TextStyle(
-                fontFamily: 'KFGQPCNaskh',
-                fontSize: fontSize + 10,
-                height: 2.35,
-                letterSpacing: 0.15,
-                wordSpacing: 2.0,
-                color: isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            TextSpan(
-              text: ' ﴿${_convertToArabicNumber(ayahNumber)}﴾',
-              style: TextStyle(
-                fontFamily: 'KFGQPCNaskh',
-                fontSize: (fontSize + 10) * 0.70,
-                height: 2.35,
-                color: Colors.teal,
-              ),
-            ),
+                text: text,
+                style: TextStyle(
+                    fontFamily: 'IndoPak',
+                    fontSize: fontSize + 8,
+                    height: 2.4,
+                    letterSpacing: 0.0,
+                    wordSpacing: 3.0,
+                    color: arabicColor,
+                ),
+                ),
+                TextSpan(
+                text: ' ﴿${_convertToArabicNumber(ayahNumber)}﴾',
+                style: TextStyle(
+                    fontFamily: 'IndoPak',
+                    fontSize: (fontSize + 8) * 0.62,
+                    height: 2.4,
+                    color: markerColor,
+                ),
+                ),
           ],
         ),
       ),

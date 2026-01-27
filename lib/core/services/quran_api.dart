@@ -28,18 +28,30 @@ class QuranAPI {
         t.contains('الرحيم');
   }
 
-  static List<Ayah> _stripBismillahIfNeeded(int surahNumber, List<Ayah> ayahs) {
-    // Surah 9 has no Bismillah header.
-    // Surah 1: Bismillah is commonly treated as Ayah 1 (keep it as-is).
-    if (surahNumber == 9 || surahNumber == 1) return ayahs;
-    if (ayahs.isEmpty) return ayahs;
+ static List<Ayah> _stripBismillahIfNeeded(int surahNumber, List<Ayah> ayahs) {
+  // Keep Surah 1 as-is (Bismillah is commonly treated as ayah 1 there)
+  // Surah 9 has no Bismillah
+  if (surahNumber == 1 || surahNumber == 9) return ayahs;
+  if (ayahs.isEmpty) return ayahs;
 
-    // If dataset prepends Bismillah as first ayah, remove it so UI can show it as header.
-    if (_looksLikeBismillah(ayahs.first.text)) {
-      return ayahs.sublist(1);
-    }
-    return ayahs;
+  // If dataset prepends Bismillah, remove it
+  if (_looksLikeBismillah(ayahs.first.text)) {
+    final trimmed = ayahs.sublist(1);
+
+    // IMPORTANT: renumber display ayah numbers (keep GLOBAL number for audio)
+    return List<Ayah>.generate(trimmed.length, (i) {
+      final a = trimmed[i];
+      return Ayah(
+        number: a.number, // keep global ayah number for audio
+        text: a.text,
+        numberInSurah: i + 1, // renumber so Alif Lam Meem becomes Ayah 1
+        translation: a.translation,
+      );
+    });
   }
+
+  return ayahs;
+}
 
   static Future<List<Surah>> getAllSurahs() async {
     try {

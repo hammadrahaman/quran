@@ -44,9 +44,9 @@ class BismillahHeader extends StatelessWidget {
             textAlign: TextAlign.center,
             textDirection: TextDirection.rtl,
             style: TextStyle(
-              fontFamily: 'KFGQPCNaskh',
-              fontSize: fontSize + 8,
-              height: 2.25,
+            fontFamily: 'IndoPak',
+            fontSize: fontSize + 8,
+            height: 2.3,
               color: isDark ? Colors.white : Colors.black,
             ),
           ),

@@ -11,7 +11,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   int dailyGoal = 5;
-  bool isDarkMode = true;
+  bool isDarkMode = false;
   double arabicFontSize = 32.0;
 
   @override
