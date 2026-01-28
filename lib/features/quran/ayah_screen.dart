@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:vibration/vibration.dart';
 
 import '../../core/services/audio_service.dart';
 import '../../core/services/quran_api.dart';
@@ -89,11 +90,17 @@ class _AyahScreenState extends State<AyahScreen> {
     );
   }
 
-  void _handleSwipe(DragEndDetails details) {
+  Future<void> _handleSwipe(DragEndDetails details) async {
     final v = details.primaryVelocity ?? 0;
     if (v < -300) {
+      if (await Vibration.hasVibrator() ?? false) {
+        Vibration.vibrate(duration: 500);
+      }
       nextAyah();
     } else if (v > 300) {
+      if (await Vibration.hasVibrator() ?? false) {
+        Vibration.vibrate(duration: 500);
+      }
       previousAyah();
     }
   }
@@ -186,6 +193,18 @@ class _AyahScreenState extends State<AyahScreen> {
     }
   }
 
+  Future<void> _playCompletionCelebration() async {
+    if (!mounted) return;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'celebration',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 200),
+      pageBuilder: (context, _, __) => const _CelebrationOverlay(),
+    );
+  }
+
   Future<void> nextAyah() async {
     await AudioService.stop();
     setState(() => isPlaying = false);
@@ -198,6 +217,8 @@ class _AyahScreenState extends State<AyahScreen> {
       _markCurrentAyahAsRead();
       return;
     }
+
+    await _playCompletionCelebration();
 
     final shouldContinue = await SurahCompletionDialog.show(
       context: context,
@@ -471,126 +492,241 @@ class _AyahScreenState extends State<AyahScreen> {
         centerTitle: true,
         leading: BackButton(color: isDark ? Colors.white : Colors.black),
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : surahDetail == null
-              ? const Center(child: Text('Failed to load Surah'))
-              : Column(
-                  children: [
-                    Expanded(
-                      child: GestureDetector(
-                        onHorizontalDragEnd: _handleSwipe,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(18),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              if (widget.surahNumber != 1 &&
-                                  widget.surahNumber != 9 &&
-                                  currentAyahIndex == 0) ...[
-                                BismillahHeader(
-                                  isDark: isDark,
-                                  fontSize: arabicFontSize,
-                                ),
-                                const SizedBox(height: 12),
-                              ],
-                              Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 14,
-                                      vertical: 8,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isDark
-                                          ? Colors.white10
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(999),
-                                      border: Border.all(
-                                        color: isDark
-                                            ? Colors.white12
-                                            : Colors.black12,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      '${widget.surahNumber}:$ayahInSurah',
-                                      style: TextStyle(
-                                        color:
-                                            isDark ? Colors.white : Colors.black,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  IconButton(
-                                    icon: Icon(
-                                      isPlaying
-                                          ? Icons.pause_circle_filled
-                                          : Icons.play_circle_fill,
-                                      size: 30,
-                                    ),
-                                    color: accent,
-                                    onPressed: _toggleAudio,
-                                  ),
-                                  IconButton(
-                                    icon: Icon(
-                                      bookmarked
-                                          ? Icons.bookmark_rounded
-                                          : Icons.bookmark_outline_rounded,
-                                      size: 28,
-                                    ),
-                                    color: bookmarked
-                                        ? const Color(0xFF7C3AED)
-                                        : (isDark
-                                            ? Colors.white70
-                                            : Colors.black54),
-                                    onPressed: _toggleBookmark,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: isDark
+                ? const [Color(0xFF0B0F1A), Color(0xFF1C1F2A)]
+                : const [Color(0xFF5B3E96), Color(0xFF1F1F1F)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : surahDetail == null
+                ? const Center(child: Text('Failed to load Surah'))
+                : Column(
+                    children: [
+                      Expanded(
+                        child: GestureDetector(
+                          onHorizontalDragEnd: _handleSwipe,
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.all(18),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF10131C)
+                                    : const Color(0xFFF7F6FB),
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.25),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 12),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 14),
-                              GestureDetector(
-                                onTap: _toggleTranslation,
-                                onDoubleTap: _toggleBookmark,
-                                onLongPress: _copyCurrentAyah,
-                                child: AyahTextWidget(
-                                  text: surahDetail!
-                                      .ayahs[currentAyahIndex].text,
-                                  ayahNumber: ayahInSurah,
-                                  fontSize: arabicFontSize,
-                                  isDark: isDark,
-                                  surahNumber: widget.surahNumber,
-                                  ayahIndex: currentAyahIndex,
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(18, 18, 18, 8),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    if (widget.surahNumber != 1 &&
+                                        widget.surahNumber != 9 &&
+                                        currentAyahIndex == 0) ...[
+                                      BismillahHeader(
+                                        isDark: isDark,
+                                        fontSize: arabicFontSize,
+                                      ),
+                                      const SizedBox(height: 12),
+                                    ],
+                                    Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                            vertical: 8,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: isDark
+                                                ? Colors.white10
+                                                : Colors.white,
+                                            borderRadius:
+                                                BorderRadius.circular(999),
+                                            border: Border.all(
+                                              color: isDark
+                                                  ? Colors.white12
+                                                  : Colors.black12,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            '${widget.surahNumber}:$ayahInSurah',
+                                            style: TextStyle(
+                                              color: isDark
+                                                  ? Colors.white
+                                                  : Colors.black,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        IconButton(
+                                          icon: Icon(
+                                            isPlaying
+                                                ? Icons.pause_circle_filled
+                                                : Icons.play_circle_fill,
+                                            size: 30,
+                                          ),
+                                          color: accent,
+                                          onPressed: _toggleAudio,
+                                        ),
+                                        IconButton(
+                                          icon: Icon(
+                                            bookmarked
+                                                ? Icons.bookmark_rounded
+                                                : Icons.bookmark_outline_rounded,
+                                            size: 28,
+                                          ),
+                                          color: bookmarked
+                                              ? const Color(0xFF7C3AED)
+                                              : (isDark
+                                                  ? Colors.white70
+                                                  : Colors.black54),
+                                          onPressed: _toggleBookmark,
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 10),
+                                    GestureDetector(
+                                      onTap: _toggleTranslation,
+                                      onDoubleTap: _toggleBookmark,
+                                      onLongPress: _copyCurrentAyah,
+                                      child: AyahTextWidget(
+                                        text: surahDetail!
+                                            .ayahs[currentAyahIndex].text,
+                                        ayahNumber: ayahInSurah,
+                                        fontSize: arabicFontSize,
+                                        isDark: isDark,
+                                        surahNumber: widget.surahNumber,
+                                        ayahIndex: currentAyahIndex,
+                                        showContainer: false,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (showTranslation &&
+                                        surahDetail!.ayahs[currentAyahIndex]
+                                                .translation !=
+                                            null)
+                                      TranslationWidget(
+                                        translation: surahDetail!
+                                            .ayahs[currentAyahIndex]
+                                            .translation!,
+                                        isDark: isDark,
+                                      ),
+                                    const SizedBox(height: 14),
+                                  ],
                                 ),
                               ),
-                              const SizedBox(height: 18),
-                              if (showTranslation &&
-                                  surahDetail!.ayahs[currentAyahIndex]
-                                          .translation !=
-                                      null)
-                                TranslationWidget(
-                                  translation: surahDetail!
-                                      .ayahs[currentAyahIndex].translation!,
-                                  isDark: isDark,
-                                ),
-                              const SizedBox(height: 24),
-                            ],
+                            ),
                           ),
                         ),
                       ),
+                      AyahNavigationBar(
+                        currentIndex: currentAyahIndex,
+                        totalAyahs: surahDetail!.ayahs.length,
+                        canGoPrevious: currentAyahIndex > 0,
+                        canGoNext: true,
+                        onPrevious: previousAyah,
+                        onNext: nextAyah,
+                        onDone: _onDone,
+                        isDark: isDark,
+                      ),
+                    ],
+                  ),
+      ),
+    );
+  }
+}
+
+class _CelebrationOverlay extends StatefulWidget {
+  const _CelebrationOverlay();
+
+  @override
+  State<_CelebrationOverlay> createState() => _CelebrationOverlayState();
+}
+
+class _CelebrationOverlayState extends State<_CelebrationOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..forward();
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _sparkle(Offset base, double size, Color color, double t) {
+    final offset = Offset(base.dx * (0.4 + t), base.dy * (0.4 + t));
+    final opacity = (1 - t).clamp(0.0, 1.0);
+    return Opacity(
+      opacity: opacity,
+      child: Transform.translate(
+        offset: offset,
+        child: Icon(Icons.auto_awesome, size: size, color: color),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final t = _controller.value;
+            final scale = 0.8 + (0.4 * t);
+            final opacity = Curves.easeOut.transform(1 - (t * 0.2));
+            return Stack(
+              alignment: Alignment.center,
+              children: [
+                Opacity(
+                  opacity: opacity,
+                  child: Transform.scale(
+                    scale: scale,
+                    child: const Icon(
+                      Icons.celebration,
+                      size: 96,
+                      color: Color(0xFF7C3AED),
                     ),
-                    AyahNavigationBar(
-                      currentIndex: currentAyahIndex,
-                      totalAyahs: surahDetail!.ayahs.length,
-                      canGoPrevious: currentAyahIndex > 0,
-                      canGoNext: true,
-                      onPrevious: previousAyah,
-                      onNext: nextAyah,
-                      onDone: _onDone,
-                      isDark: isDark,
-                    ),
-                  ],
+                  ),
                 ),
+                _sparkle(const Offset(-90, -60), 26, Colors.amber, t),
+                _sparkle(const Offset(90, -40), 22, Colors.pinkAccent, t),
+                _sparkle(const Offset(-70, 70), 20, Colors.lightBlueAccent, t),
+                _sparkle(const Offset(70, 80), 24, Colors.tealAccent, t),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 }
