@@ -4,18 +4,26 @@ import 'package:just_audio/just_audio.dart';
 
 class AudioService {
   static final AudioPlayer _audioPlayer = AudioPlayer();
+  static int? _currentAyah;
 
-  // AlQuran Cloud reciter edition for Abdul Rahman Al-Sudais
-  // (If this ever changes upstream, we can make it configurable in Settings.)
   static const String _reciterEdition = 'ar.abdurrahmaansudais';
   static const String _apiBase = 'https://api.alquran.cloud/v1';
 
-  static Stream<PlayerState> get playerStateStream => _audioPlayer.playerStateStream;
+  static Stream<PlayerState> get playerStateStream =>
+      _audioPlayer.playerStateStream;
   static bool get isPlaying => _audioPlayer.playing;
 
-  /// Plays a single ayah using its GLOBAL ayah number (the API 'number' field).
   static Future<void> playAyah(int globalAyahNumber) async {
     try {
+      if (_currentAyah == globalAyahNumber &&
+            _audioPlayer.processingState != ProcessingState.idle) {
+            if (_audioPlayer.processingState == ProcessingState.completed) {
+                await _audioPlayer.seek(Duration.zero);
+            }
+            await _audioPlayer.play();
+            return;
+        }
+
       final uri = Uri.parse('$_apiBase/ayah/$globalAyahNumber/$_reciterEdition');
       final res = await http.get(uri);
 
@@ -31,10 +39,10 @@ class AudioService {
         throw Exception('No audio url in response');
       }
 
+      _currentAyah = globalAyahNumber;
       await _audioPlayer.setUrl(audioUrl);
       await _audioPlayer.play();
     } catch (e) {
-      // Keep this print; it’s very useful for debugging reciter URLs.
       // ignore: avoid_print
       print('Error playing ayah audio: $e');
       rethrow;
@@ -43,5 +51,6 @@ class AudioService {
 
   static Future<void> pause() async => _audioPlayer.pause();
   static Future<void> stop() async => _audioPlayer.stop();
+
   static Future<void> dispose() async => _audioPlayer.dispose();
 }

@@ -8,6 +8,7 @@ class AyahTextWidget extends StatelessWidget {
   final int surahNumber;
   final int ayahIndex;
   final bool showContainer;
+  final String? bismillahText;
 
   const AyahTextWidget({
     super.key,
@@ -18,6 +19,7 @@ class AyahTextWidget extends StatelessWidget {
     required this.surahNumber,
     required this.ayahIndex,
     this.showContainer = true,
+    this.bismillahText,
   });
 
   String _convertToArabicNumber(int number) {
@@ -44,6 +46,19 @@ class AyahTextWidget extends StatelessWidget {
       textDirection: TextDirection.rtl,
       text: TextSpan(
         children: [
+          if (bismillahText != null) ...[
+            TextSpan(
+              text: bismillahText!,
+              style: TextStyle(
+                fontFamily: 'IndoPak',
+                fontSize: fontSize + 8,
+                height: 2.4,
+                fontWeight: FontWeight.bold,
+                color: arabicColor,
+              ),
+            ),
+            const TextSpan(text: '\n\n'),
+          ],
           TextSpan(
             text: text,
             style: TextStyle(

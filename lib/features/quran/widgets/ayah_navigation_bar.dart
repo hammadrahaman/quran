@@ -109,7 +109,7 @@ class AyahNavigationBar extends StatelessWidget {
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              "I'm Done",
+                              "Save & Bookmark",
                               maxLines: 1,
                               style: TextStyle(
                                 fontSize: isLandscape ? 14 : 15,

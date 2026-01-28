@@ -11,7 +11,6 @@ import '../../core/storage/local_storage.dart';
 
 import 'widgets/ayah_navigation_bar.dart';
 import 'widgets/ayah_text_widget.dart';
-import 'widgets/bismillah_header.dart';
 import 'widgets/surah_completion_dialog.dart';
 import 'widgets/translation_widget.dart';
 
@@ -52,11 +51,15 @@ class _AyahScreenState extends State<AyahScreen> {
     currentAyahIndex = widget.initialAyahIndex;
 
     _playerSub = AudioService.playerStateStream.listen((state) {
-      if (!mounted) return;
-      if (state.processingState == ProcessingState.completed) {
-        setState(() => isPlaying = false);
-      }
-    });
+        if (!mounted) return;
+
+        if (state.processingState == ProcessingState.completed) {
+            setState(() => isPlaying = false);
+            return;
+        }
+
+        setState(() => isPlaying = state.playing);
+        });
 
     loadSurah();
   }
@@ -71,6 +74,37 @@ class _AyahScreenState extends State<AyahScreen> {
   void _toggleTranslation() {
     setState(() => showTranslation = !showTranslation);
   }
+
+  String _normalizeArabic(String text) {
+    final withoutBom = text.replaceFirst('\uFEFF', '');
+    final removedDiacritics = withoutBom.replaceAll(
+      RegExp(r'[\u0610-\u061A\u064B-\u065F\u0670]'),
+      '',
+    );
+    return removedDiacritics
+        .replaceAll('\u0640', '') // tatweel
+        .replaceAll('أ', 'ا')
+        .replaceAll('إ', 'ا')
+        .replaceAll('آ', 'ا')
+        .replaceAll('ٱ', 'ا')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trimLeft();
+  }
+
+  String _stripLeadingBismillah(String text) {
+    final normalized = _normalizeArabic(text);
+    const normalizedBismillah = 'بسم الله الرحمن الرحيم';
+    if (!normalized.startsWith(normalizedBismillah)) {
+      return text;
+    }
+    final withNoBom = text.replaceFirst('\uFEFF', '').trimLeft();
+    final parts = withNoBom.split(RegExp(r'\s+'));
+    if (parts.length >= 4) {
+      return parts.sublist(4).join(' ').trimLeft();
+    }
+    return withNoBom;
+  }
+
 
   void _copyCurrentAyah() {
     if (surahDetail == null) return;
@@ -118,28 +152,25 @@ class _AyahScreenState extends State<AyahScreen> {
     }
   }
 
-  Future<void> _toggleAudio() async {
-    if (surahDetail == null) return;
-    final globalAyah = surahDetail!.ayahs[currentAyahIndex].number;
+ Future<void> _toggleAudio() async {
+  if (surahDetail == null) return;
+  final globalAyah = surahDetail!.ayahs[currentAyahIndex].number;
 
-    try {
-      if (isPlaying) {
-        await AudioService.pause();
-        setState(() => isPlaying = false);
-      } else {
-        await AudioService.playAyah(globalAyah);
-        setState(() => isPlaying = true);
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => isPlaying = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Audio failed to load. Check internet and try again.'),
-        ),
-      );
+  try {
+    if (AudioService.isPlaying) {
+      await AudioService.pause();
+    } else {
+      await AudioService.playAyah(globalAyah);
     }
+  } catch (_) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Audio failed to load. Check internet and try again.'),
+      ),
+    );
   }
+}
 
   void _toggleBookmark() {
     if (surahDetail == null) return;
@@ -201,7 +232,7 @@ class _AyahScreenState extends State<AyahScreen> {
       barrierLabel: 'celebration',
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (context, _, __) => const _CelebrationOverlay(),
+     pageBuilder: (context, _, __) => const _FireworkOverlay(),
     );
   }
 
@@ -464,9 +495,19 @@ class _AyahScreenState extends State<AyahScreen> {
     final ayahInSurah = (surahDetail == null)
         ? 1
         : surahDetail!.ayahs[currentAyahIndex].numberInSurah;
+    final totalAyahs = surahDetail?.ayahs.length ?? 0;
 
     final bookmarked =
         LocalStorage.isBookmarked(widget.surahNumber, ayahInSurah);
+
+    const bismillahText = 'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ';
+    final originalAyahText = surahDetail?.ayahs[currentAyahIndex].text ?? '';
+    final showInlineBismillah = widget.surahNumber != 1 &&
+        widget.surahNumber != 9 &&
+        currentAyahIndex == 0;
+    final cleanedAyahText = showInlineBismillah
+        ? _stripLeadingBismillah(originalAyahText)
+        : originalAyahText;
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF05070F) : Colors.white,
@@ -495,9 +536,9 @@ class _AyahScreenState extends State<AyahScreen> {
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isDark
-                ? const [Color(0xFF0B0F1A), Color(0xFF1C1F2A)]
-                : const [Color(0xFF5B3E96), Color(0xFF1F1F1F)],
+             colors: isDark
+                ? const [Color(0xFF438FD2), Color(0xFF1C1B24)]
+                : const [Color(0xFF4A2D6F), Color(0xFF1C1B24)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -534,15 +575,6 @@ class _AyahScreenState extends State<AyahScreen> {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.stretch,
                                   children: [
-                                    if (widget.surahNumber != 1 &&
-                                        widget.surahNumber != 9 &&
-                                        currentAyahIndex == 0) ...[
-                                      BismillahHeader(
-                                        isDark: isDark,
-                                        fontSize: arabicFontSize,
-                                      ),
-                                      const SizedBox(height: 12),
-                                    ],
                                     Row(
                                       children: [
                                         Container(
@@ -563,7 +595,9 @@ class _AyahScreenState extends State<AyahScreen> {
                                             ),
                                           ),
                                           child: Text(
-                                            '${widget.surahNumber}:$ayahInSurah',
+                                            totalAyahs > 0
+                                                ? '$ayahInSurah/$totalAyahs'
+                                                : '$ayahInSurah',
                                             style: TextStyle(
                                               color: isDark
                                                   ? Colors.white
@@ -605,14 +639,15 @@ class _AyahScreenState extends State<AyahScreen> {
                                       onDoubleTap: _toggleBookmark,
                                       onLongPress: _copyCurrentAyah,
                                       child: AyahTextWidget(
-                                        text: surahDetail!
-                                            .ayahs[currentAyahIndex].text,
+                                        text: cleanedAyahText,
                                         ayahNumber: ayahInSurah,
                                         fontSize: arabicFontSize,
                                         isDark: isDark,
                                         surahNumber: widget.surahNumber,
                                         ayahIndex: currentAyahIndex,
                                         showContainer: false,
+                                        bismillahText:
+                                            showInlineBismillah ? bismillahText : null,
                                       ),
                                     ),
                                     const SizedBox(height: 16),
@@ -651,14 +686,14 @@ class _AyahScreenState extends State<AyahScreen> {
   }
 }
 
-class _CelebrationOverlay extends StatefulWidget {
-  const _CelebrationOverlay();
+class _FireworkOverlay extends StatefulWidget {
+  const _FireworkOverlay();
 
   @override
-  State<_CelebrationOverlay> createState() => _CelebrationOverlayState();
+  State<_FireworkOverlay> createState() => _FireworkOverlayState();
 }
 
-class _CelebrationOverlayState extends State<_CelebrationOverlay>
+class _FireworkOverlayState extends State<_FireworkOverlay>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -667,10 +702,10 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 1200),
     )..forward();
 
-    Future.delayed(const Duration(milliseconds: 1200), () {
+    Future.delayed(const Duration(milliseconds: 1400), () {
       if (mounted) Navigator.of(context).pop();
     });
   }
@@ -681,8 +716,24 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
     super.dispose();
   }
 
+  Widget _burst(Color color, double maxSize, double t) {
+    final size = maxSize * t;
+    final opacity = (1 - t).clamp(0.0, 1.0);
+    return Opacity(
+      opacity: opacity,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withOpacity(opacity), width: 2),
+        ),
+      ),
+    );
+  }
+
   Widget _sparkle(Offset base, double size, Color color, double t) {
-    final offset = Offset(base.dx * (0.4 + t), base.dy * (0.4 + t));
+    final offset = Offset(base.dx * (0.3 + t), base.dy * (0.3 + t));
     final opacity = (1 - t).clamp(0.0, 1.0);
     return Opacity(
       opacity: opacity,
@@ -701,27 +752,23 @@ class _CelebrationOverlayState extends State<_CelebrationOverlay>
         child: AnimatedBuilder(
           animation: _controller,
           builder: (context, _) {
-            final t = _controller.value;
-            final scale = 0.8 + (0.4 * t);
-            final opacity = Curves.easeOut.transform(1 - (t * 0.2));
+            final t1 = Curves.easeOut.transform(_controller.value.clamp(0, 1));
+            final t2 = Curves.easeOut.transform(
+                (_controller.value - 0.15).clamp(0, 1));
+            final t3 = Curves.easeOut.transform(
+                (_controller.value - 0.3).clamp(0, 1));
+
             return Stack(
               alignment: Alignment.center,
               children: [
-                Opacity(
-                  opacity: opacity,
-                  child: Transform.scale(
-                    scale: scale,
-                    child: const Icon(
-                      Icons.celebration,
-                      size: 96,
-                      color: Color(0xFF7C3AED),
-                    ),
-                  ),
-                ),
-                _sparkle(const Offset(-90, -60), 26, Colors.amber, t),
-                _sparkle(const Offset(90, -40), 22, Colors.pinkAccent, t),
-                _sparkle(const Offset(-70, 70), 20, Colors.lightBlueAccent, t),
-                _sparkle(const Offset(70, 80), 24, Colors.tealAccent, t),
+                _burst(Colors.amber, 160, t1),
+                _burst(Colors.pinkAccent, 140, t2),
+                _burst(Colors.lightBlueAccent, 130, t3),
+
+                _sparkle(const Offset(-90, -60), 22, Colors.amber, t1),
+                _sparkle(const Offset(90, -40), 20, Colors.pinkAccent, t1),
+                _sparkle(const Offset(-70, 70), 18, Colors.lightBlueAccent, t2),
+                _sparkle(const Offset(70, 80), 20, Colors.tealAccent, t3),
               ],
             );
           },
