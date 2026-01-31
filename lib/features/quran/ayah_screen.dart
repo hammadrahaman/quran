@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:vibration/vibration.dart';
 
 import '../../core/services/audio_service.dart';
 import '../../core/services/quran_api.dart';
@@ -127,14 +126,10 @@ class _AyahScreenState extends State<AyahScreen> {
   Future<void> _handleSwipe(DragEndDetails details) async {
     final v = details.primaryVelocity ?? 0;
     if (v < -300) {
-      if (await Vibration.hasVibrator() ?? false) {
-        Vibration.vibrate(duration: 500);
-      }
+      HapticFeedback.selectionClick();
       nextAyah();
     } else if (v > 300) {
-      if (await Vibration.hasVibrator() ?? false) {
-        Vibration.vibrate(duration: 500);
-      }
+      HapticFeedback.selectionClick();
       previousAyah();
     }
   }

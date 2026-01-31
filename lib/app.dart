@@ -44,7 +44,7 @@ class QuranCompanionAppState extends State<QuranCompanionApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Quran Companion',
+      title: 'Iqra Quran Daily',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
