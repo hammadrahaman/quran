@@ -9,7 +9,7 @@ PODS:
   - just_audio (0.0.1):
     - Flutter
     - FlutterMacOS
-  - vibration (1.7.5):
+  - vibration (3.0.0):
     - Flutter
 
 DEPENDENCIES:
@@ -40,7 +40,7 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
   just_audio: 4e391f57b79cad2b0674030a00453ca5ce817eed
-  vibration: 8e2f50fc35bb736f9eecb7dd9f7047fbb6a6e888
+  vibration: ca8104a8875b9c493e15b21b04e456befd0ff6eb
 
 PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
 
